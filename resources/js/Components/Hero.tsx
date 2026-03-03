@@ -22,18 +22,18 @@ const Hero = () => {
           </p>
           <h1 className="font-display text-4xl md:text-6xl lg:text-7xl text-primary-foreground font-medium leading-tight mb-6 animate-fade-up opacity-0 animation-delay-200">
             Association of Ballet Academies
-            <span className="block italic text-gold-light mt-2">of the Philippines</span>
+            <span className="block italic text-gold-light mt-2">of the Philippines</span> (ABAP), Inc.
           </h1>
           <p className="font-body text-primary-foreground/80 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-up opacity-0 animation-delay-400">
             Uniting the nation's premier ballet institutions to nurture artistic excellence and preserve the timeless art of classical dance.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up opacity-0 animation-delay-600">
-            <Button variant="gold" size="xl">
+            <a href="#academies"><Button variant="gold" size="xl">
               Discover Our Academies
-            </Button>
-            <Button variant="heroOutline" size="xl">
+            </Button></a>
+            <a href="#events"><Button variant="heroOutline" size="xl">
               Upcoming Events
-            </Button>
+            </Button></a>
           </div>
         </div>
       </div>

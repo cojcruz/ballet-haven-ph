@@ -30,9 +30,13 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto px-6 flex items-center justify-between">
-        <a href="#" className="flex items-center gap-3">
+        <a href="/" className="flex items-center gap-3">
           <span className="font-display text-xl md:text-2xl font-semibold text-foreground">
-            ABAP
+            <img src="images/logo_notext.png" alt="ABAP Logo" className="w-20 h-20"/>
+          </span>          
+          <span className="font-display text-lg md:text-xl font-semibold text-foreground">
+            <span className="border-b border-b-solid border-black">Association of Ballet Academies of the Philippines (ABAP), Inc.</span><br />
+            <span className="block w-full text-center justify-between">INTEGRITY. SERVICE. LEADERSHIP IN DANCE.</span>
           </span>
         </a>
 
@@ -47,9 +51,9 @@ const Navbar = () => {
               {link.name}
             </a>
           ))}
-          <Button variant="default" size="sm">
+          {/* <Button variant="default" size="sm">
             Join ABAP
-          </Button>
+          </Button> */}
         </div>
 
         {/* Mobile Menu Toggle */}

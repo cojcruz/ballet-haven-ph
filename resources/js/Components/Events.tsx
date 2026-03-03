@@ -1,35 +1,92 @@
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import performanceImage from "@/assets/performance.jpg";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
-const events = [
-  {
-    title: "ABAP National Ballet Competition 2025",
-    date: "March 15-18, 2025",
-    time: "9:00 AM - 6:00 PM",
-    location: "Cultural Center of the Philippines, Manila",
-    description: "Annual competition showcasing the finest young ballet talents from member academies.",
-    featured: true,
-  },
-  {
-    title: "Spring Gala Performance",
-    date: "April 12, 2025",
-    time: "7:00 PM",
-    location: "Manila Metropolitan Theater",
-    description: "A celebration of Filipino ballet featuring guest artists and emerging stars.",
-    featured: false,
-  },
-  {
-    title: "Master Class Series: International Guest Artists",
-    date: "May 5-7, 2025",
-    time: "10:00 AM - 4:00 PM",
-    location: "Various Member Academies",
-    description: "Exclusive workshops with internationally acclaimed ballet masters.",
-    featured: false,
-  },
-];
+type Event = {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  details: string | null;
+  location: string | null;
+  registration_link: string | null;
+  featured_image: string | null;
+  featured: boolean;
+};
 
 const Events = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get('/api/events')
+      .then((res) => {
+        setEvents(res.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const formatDate = (startDate: string, endDate: string | null) => {
+    const start = new Date(startDate);
+    const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+    if (endDate && endDate !== startDate) {
+      const end = new Date(endDate);
+      if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${start.toLocaleDateString('en-US', { month: 'long' })} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+      }
+      return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
+    }
+    return start.toLocaleDateString('en-US', options);
+  };
+
+  const formatTime = (startTime: string | null, endTime: string | null) => {
+    if (!startTime) return null;
+    const formatT = (t: string) => {
+      const [h, m] = t.split(':');
+      const hour = parseInt(h);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return `${hour12}:${m} ${ampm}`;
+    };
+    if (endTime) {
+      return `${formatT(startTime)} - ${formatT(endTime)}`;
+    }
+    return formatT(startTime);
+  };
+
+  const featuredEvent = events.find(e => e.featured) || events[0];
+  const otherEvents = events.filter(e => e.id !== featuredEvent?.id);
+
+  if (loading) {
+    return (
+      <section id="events" className="py-24 bg-background">
+        <div className="container mx-auto px-6 text-center">
+          <p className="text-muted-foreground">Loading events...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <section id="events" className="py-24 bg-background">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="font-display text-3xl md:text-5xl text-foreground font-medium mb-6">
+            Upcoming Events
+          </h2>
+          <p className="text-muted-foreground">No upcoming events at this time. Check back soon!</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="events" className="py-24 bg-background">
       <div className="container mx-auto px-6">
@@ -47,77 +104,103 @@ const Events = () => {
         </div>
 
         {/* Featured Event */}
-        <div className="mb-12">
-          <div className="grid lg:grid-cols-2 gap-8 bg-card rounded-lg overflow-hidden shadow-elegant border border-border">
-            <div className="relative h-64 lg:h-auto">
-              <img
-                src={performanceImage}
-                alt="Ballet performance"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-4 left-4">
-                <span className="inline-block px-4 py-2 bg-accent text-accent-foreground text-xs font-body font-semibold rounded-full tracking-wide uppercase">
-                  Featured Event
-                </span>
-              </div>
-            </div>
-            <div className="p-8 lg:p-12 flex flex-col justify-center">
-              <h3 className="font-display text-2xl md:text-3xl text-foreground font-medium mb-4">
-                {events[0].title}
-              </h3>
-              <p className="font-body text-muted-foreground mb-6 leading-relaxed">
-                {events[0].description}
-              </p>
-              <div className="space-y-3 mb-8">
-                <div className="flex items-center gap-3 text-foreground">
-                  <Calendar size={18} className="text-primary" />
-                  <span className="font-body">{events[0].date}</span>
-                </div>
-                <div className="flex items-center gap-3 text-foreground">
-                  <Clock size={18} className="text-primary" />
-                  <span className="font-body">{events[0].time}</span>
-                </div>
-                <div className="flex items-center gap-3 text-foreground">
-                  <MapPin size={18} className="text-primary" />
-                  <span className="font-body">{events[0].location}</span>
+        {featuredEvent && (
+          <div className="mb-12">
+            <div className="grid lg:grid-cols-2 gap-8 bg-card rounded-lg overflow-hidden shadow-elegant border border-border">
+              <div className="relative h-64 lg:h-auto">
+                <img
+                  src={featuredEvent.featured_image ? `/storage/${featuredEvent.featured_image}` : performanceImage}
+                  alt={featuredEvent.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 left-4">
+                  <span className="inline-block px-4 py-2 bg-accent text-accent-foreground text-xs font-body font-semibold rounded-full tracking-wide uppercase">
+                    Featured Event
+                  </span>
                 </div>
               </div>
-              <Button variant="default" size="lg" className="w-fit">
-                Register Now
-              </Button>
+              <div className="p-8 lg:p-12 flex flex-col justify-center">
+                <h3 className="font-display text-2xl md:text-3xl text-foreground font-medium mb-4">
+                  {featuredEvent.name}
+                </h3>
+                <p className="font-body text-muted-foreground mb-6 leading-relaxed">
+                  {featuredEvent.details}
+                </p>
+                <div className="space-y-3 mb-8">
+                  <div className="flex items-center gap-3 text-foreground">
+                    <Calendar size={18} className="text-primary" />
+                    <span className="font-body">{formatDate(featuredEvent.start_date, featuredEvent.end_date)}</span>
+                  </div>
+                  {formatTime(featuredEvent.start_time, featuredEvent.end_time) && (
+                    <div className="flex items-center gap-3 text-foreground">
+                      <Clock size={18} className="text-primary" />
+                      <span className="font-body">{formatTime(featuredEvent.start_time, featuredEvent.end_time)}</span>
+                    </div>
+                  )}
+                  {featuredEvent.location && (
+                    <div className="flex items-center gap-3 text-foreground">
+                      <MapPin size={18} className="text-primary" />
+                      <span className="font-body">{featuredEvent.location}</span>
+                    </div>
+                  )}
+                </div>
+                {featuredEvent.registration_link ? (
+                  <a href={featuredEvent.registration_link} target="_blank" rel="noopener noreferrer">
+                    <Button variant="default" size="lg" className="w-fit">
+                      Register Now
+                    </Button>
+                  </a>
+                ) : (
+                  <Button variant="default" size="lg" className="w-fit" disabled>
+                    Registration Coming Soon
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Other Events */}
-        <div className="grid md:grid-cols-2 gap-8">
-          {events.slice(1).map((event, index) => (
-            <div
-              key={index}
-              className="bg-card rounded-lg p-8 shadow-soft border border-border hover:shadow-elegant hover:border-gold/30 transition-all duration-500"
-            >
-              <h3 className="font-display text-xl text-foreground font-medium mb-3">
-                {event.title}
-              </h3>
-              <p className="font-body text-muted-foreground mb-6 text-sm leading-relaxed">
-                {event.description}
-              </p>
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-3 text-foreground text-sm">
-                  <Calendar size={16} className="text-primary" />
-                  <span className="font-body">{event.date}</span>
+        {otherEvents.length > 0 && (
+          <div className="grid md:grid-cols-2 gap-8">
+            {otherEvents.map((event) => (
+              <div
+                key={event.id}
+                className="bg-card rounded-lg p-8 shadow-soft border border-border hover:shadow-elegant hover:border-gold/30 transition-all duration-500"
+              >
+                <h3 className="font-display text-xl text-foreground font-medium mb-3">
+                  {event.name}
+                </h3>
+                <p className="font-body text-muted-foreground mb-6 text-sm leading-relaxed">
+                  {event.details}
+                </p>
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-3 text-foreground text-sm">
+                    <Calendar size={16} className="text-primary" />
+                    <span className="font-body">{formatDate(event.start_date, event.end_date)}</span>
+                  </div>
+                  {event.location && (
+                    <div className="flex items-center gap-3 text-foreground text-sm">
+                      <MapPin size={16} className="text-primary" />
+                      <span className="font-body">{event.location}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-3 text-foreground text-sm">
-                  <MapPin size={16} className="text-primary" />
-                  <span className="font-body">{event.location}</span>
-                </div>
+                {event.registration_link ? (
+                  <a href={event.registration_link} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm">
+                      Register
+                    </Button>
+                  </a>
+                ) : (
+                  <Button variant="outline" size="sm" disabled>
+                    Details Coming Soon
+                  </Button>
+                )}
               </div>
-              <Button variant="outline" size="sm">
-                Learn More
-              </Button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

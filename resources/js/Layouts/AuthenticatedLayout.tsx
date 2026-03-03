@@ -33,6 +33,27 @@ export default function Authenticated({
                                 >
                                     Dashboard
                                 </NavLink>
+
+                                <NavLink
+                                    href={route('cms.pages.index')}
+                                    active={route().current('cms.pages.*')}
+                                >
+                                    CMS
+                                </NavLink>
+
+                                <NavLink
+                                    href={route('events.index')}
+                                    active={route().current('events.*')}
+                                >
+                                    Events
+                                </NavLink>
+
+                                <NavLink
+                                    href={route('forms.index')}
+                                    active={route().current('forms.*')}
+                                >
+                                    Forms
+                                </NavLink>
                             </div>
                         </div>
 
@@ -136,6 +157,27 @@ export default function Authenticated({
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('cms.pages.index')}
+                            active={route().current('cms.pages.*')}
+                        >
+                            CMS
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('events.index')}
+                            active={route().current('events.*')}
+                        >
+                            Events
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('forms.index')}
+                            active={route().current('forms.*')}
+                        >
+                            Forms
                         </ResponsiveNavLink>
                     </div>
 
