@@ -19,8 +19,9 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Site Admin',
+            'email' => 'admin@abap-inc.org',
+            'password' => Hash::make('ab@p2026!'),
         ]);
 
         $page = CmsPage::query()->firstOrCreate(
