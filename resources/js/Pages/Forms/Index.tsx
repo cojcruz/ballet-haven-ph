@@ -1,5 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { Download, Upload, Code, X } from 'lucide-react';
 
 type Form = {
     id: number;
@@ -16,10 +18,32 @@ type Props = {
 };
 
 export default function Index({ forms }: Props) {
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [showEmbedModal, setShowEmbedModal] = useState<Form | null>(null);
+    const { data, setData, post, processing } = useForm<{ file: File | null }>({ file: null });
+
     const handleDelete = (id: number) => {
         if (confirm('Are you sure you want to delete this form? All submissions will be lost.')) {
             router.delete(route('forms.destroy', id));
         }
+    };
+
+    const handleImport = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (data.file) {
+            post(route('forms.import'), {
+                forceFormData: true,
+                onSuccess: () => {
+                    setShowImportModal(false);
+                    setData('file', null);
+                },
+            });
+        }
+    };
+
+    const getEmbedCode = (form: Form) => {
+        const url = `${window.location.origin}/form/${form.slug}/embed`;
+        return `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border: none;"></iframe>`;
     };
 
     return (
@@ -29,12 +53,21 @@ export default function Index({ forms }: Props) {
                     <h2 className="text-xl font-semibold leading-tight text-gray-800">
                         Forms
                     </h2>
-                    <Link
-                        href={route('forms.create')}
-                        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                    >
-                        Create Form
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowImportModal(true)}
+                            className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                        >
+                            <Upload size={16} />
+                            Import
+                        </button>
+                        <Link
+                            href={route('forms.create')}
+                            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                        >
+                            Create Form
+                        </Link>
+                    </div>
                 </div>
             }
         >
@@ -104,15 +137,31 @@ export default function Index({ forms }: Props) {
                                                 </td>
                                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                                                     {form.published && (
-                                                        <a
-                                                            href={`/form/${form.slug}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-gray-600 hover:text-gray-900 mr-4"
-                                                        >
-                                                            View
-                                                        </a>
+                                                        <>
+                                                            <a
+                                                                href={`/form/${form.slug}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-gray-600 hover:text-gray-900 mr-3"
+                                                            >
+                                                                View
+                                                            </a>
+                                                            <button
+                                                                onClick={() => setShowEmbedModal(form)}
+                                                                className="text-purple-600 hover:text-purple-900 mr-3"
+                                                                title="Get embed code"
+                                                            >
+                                                                <Code size={16} className="inline" />
+                                                            </button>
+                                                        </>
                                                     )}
+                                                    <a
+                                                        href={route('forms.export', form.id)}
+                                                        className="text-green-600 hover:text-green-900 mr-3"
+                                                        title="Export form"
+                                                    >
+                                                        <Download size={16} className="inline" />
+                                                    </a>
                                                     <Link
                                                         href={route('forms.edit', form.id)}
                                                         className="text-indigo-600 hover:text-indigo-900"
@@ -121,7 +170,7 @@ export default function Index({ forms }: Props) {
                                                     </Link>
                                                     <button
                                                         onClick={() => handleDelete(form.id)}
-                                                        className="ml-4 text-red-600 hover:text-red-900"
+                                                        className="ml-3 text-red-600 hover:text-red-900"
                                                     >
                                                         Delete
                                                     </button>
@@ -135,6 +184,100 @@ export default function Index({ forms }: Props) {
                     </div>
                 </div>
             </div>
+            {/* Import Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">Import Form</h3>
+                            <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleImport}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Select JSON file
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={(e) => setData('file', e.target.files?.[0] || null)}
+                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowImportModal(false)}
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!data.file || processing}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    {processing ? 'Importing...' : 'Import'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Embed Modal */}
+            {showEmbedModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">Embed Form: {showEmbedModal.title}</h3>
+                            <button onClick={() => setShowEmbedModal(null)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Embed Code
+                            </label>
+                            <textarea
+                                readOnly
+                                value={getEmbedCode(showEmbedModal)}
+                                rows={4}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono bg-gray-50"
+                                onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                            />
+                            <p className="mt-2 text-xs text-gray-500">
+                                Copy and paste this code into your CMS page or HTML.
+                            </p>
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Direct Link
+                            </label>
+                            <input
+                                type="text"
+                                readOnly
+                                value={`${window.location.origin}/form/${showEmbedModal.slug}/embed`}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono bg-gray-50"
+                                onClick={(e) => (e.target as HTMLInputElement).select()}
+                            />
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(getEmbedCode(showEmbedModal));
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                            >
+                                Copy Embed Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

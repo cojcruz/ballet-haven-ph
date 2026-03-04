@@ -20,12 +20,19 @@ class FormField extends Model
         'required',
         'order',
         'width',
+        'conditional_field',
+        'conditional_value',
+        'repeater_fields',
+        'html_content',
+        'allowed_file_types',
+        'auto_populate_from',
     ];
 
     protected $casts = [
         'options' => 'array',
         'validation_rules' => 'array',
         'required' => 'boolean',
+        'repeater_fields' => 'array',
     ];
 
     public function form(): BelongsTo

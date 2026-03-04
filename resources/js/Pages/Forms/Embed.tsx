@@ -36,7 +36,7 @@ type Props = {
     form: FormType;
 };
 
-export default function Show({ form: formData }: Props) {
+export default function Embed({ form: formData }: Props) {
     const pageProps = usePage().props as unknown as { flash?: { success?: string } };
     const flash = pageProps.flash || {};
 
@@ -124,17 +124,20 @@ export default function Show({ form: formData }: Props) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        
-        // Add repeater data to form data before submission
-        Object.entries(repeaterData).forEach(([fieldName, entries]) => {
-            setData(fieldName as keyof typeof data, entries as unknown as typeof data[keyof typeof data]);
+
+        const formDataToSubmit = { ...data };
+        Object.keys(repeaterData).forEach((key) => {
+            formDataToSubmit[key] = repeaterData[key] as unknown as string;
+        });
+
+        Object.keys(formDataToSubmit).forEach((key) => {
+            setData(key, formDataToSubmit[key]);
         });
 
         post(route('forms.public.submit', formData.slug), {
             forceFormData: true,
             onSuccess: () => {
                 reset();
-                // Reset repeater data
                 const initialRepeater: Record<string, RepeaterEntry[]> = {};
                 formData.fields.forEach((field) => {
                     if (field.type === 'repeater') {
@@ -168,10 +171,10 @@ export default function Show({ form: formData }: Props) {
         return String(conditionalValue || '') === field.conditional_value;
     };
 
-    const renderField = (field: FormField) => {
-        const baseInputClass =
-            'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+    const baseInputClass =
+        'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
 
+    const renderField = (field: FormField) => {
         switch (field.type) {
             case 'textarea':
                 return (
@@ -196,9 +199,9 @@ export default function Show({ form: formData }: Props) {
                         className={baseInputClass}
                     >
                         <option value="">Select...</option>
-                        {field.options?.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
+                        {field.options?.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
                             </option>
                         ))}
                     </select>
@@ -207,18 +210,18 @@ export default function Show({ form: formData }: Props) {
             case 'radio':
                 return (
                     <div className="mt-2 space-y-2">
-                        {field.options?.map((opt) => (
-                            <label key={opt.value} className="flex items-center gap-2">
+                        {field.options?.map((option) => (
+                            <label key={option.value} className="flex items-center gap-2">
                                 <input
                                     type="radio"
                                     name={field.name}
-                                    value={opt.value}
-                                    checked={data[field.name] === opt.value}
+                                    value={option.value}
+                                    checked={data[field.name] === option.value}
                                     onChange={(e) => setData(field.name, e.target.value)}
                                     required={field.required}
                                     className="border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                 />
-                                <span className="text-sm text-gray-700">{opt.label}</span>
+                                <span className="text-sm text-gray-700">{option.label}</span>
                             </label>
                         ))}
                     </div>
@@ -226,17 +229,16 @@ export default function Show({ form: formData }: Props) {
 
             case 'checkbox':
                 return (
-                    <div className="mt-2">
-                        <label className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                checked={data[field.name] as boolean}
-                                onChange={(e) => setData(field.name, e.target.checked)}
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <span className="text-sm text-gray-700">{field.label}</span>
-                        </label>
-                    </div>
+                    <label className="flex items-center gap-2 mt-1">
+                        <input
+                            type="checkbox"
+                            id={field.name}
+                            checked={data[field.name] as boolean}
+                            onChange={(e) => setData(field.name, e.target.checked)}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700">{field.label}</span>
+                    </label>
                 );
 
             case 'file':
@@ -314,7 +316,7 @@ export default function Show({ form: formData }: Props) {
                             onClick={() => addRepeaterEntry(field.name)}
                             className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
                         >
-                            <Plus size={14} />
+                            <Plus size={16} />
                             Add Entry
                         </button>
                     </div>
@@ -401,81 +403,70 @@ export default function Show({ form: formData }: Props) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-12">
+        <>
             <Head title={formData.title} />
 
-            <div className="mx-auto max-w-2xl sm:px-6 lg:px-8">
-                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-                    <div className="p-6 md:p-8">
-                        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                            {formData.title}
-                        </h1>
-                        {formData.description && (
-                            <p className="text-gray-600 mb-6">{formData.description}</p>
-                        )}
-
-                        {flash.success && (
-                            <div className="mb-6 rounded-md bg-green-50 p-4">
-                                <p className="text-sm text-green-800">{flash.success}</p>
-                            </div>
-                        )}
-
-                        <form onSubmit={submit}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {formData.fields.map((field) => {
-                                    if (!isFieldVisible(field)) {
-                                        return null;
-                                    }
-                                    return (
-                                        <div
-                                            key={field.id}
-                                            className={`${getWidthClass(field.width)} ${
-                                                field.type === 'hidden' ? 'hidden' : ''
-                                            }`}
-                                        >
-                                            {!['checkbox', 'hidden', 'section', 'html'].includes(field.type) && (
-                                                <label
-                                                    htmlFor={field.name}
-                                                    className="block text-sm font-medium text-gray-700"
-                                                >
-                                                    {field.label}
-                                                    {field.required && (
-                                                        <span className="text-red-500 ml-1">*</span>
-                                                    )}
-                                                </label>
-                                            )}
-
-                                            {renderField(field)}
-
-                                            {field.help_text && !['section', 'html'].includes(field.type) && (
-                                                <p className="mt-1 text-sm text-gray-500">
-                                                    {field.help_text}
-                                                </p>
-                                            )}
-
-                                            {errors[field.name] && (
-                                                <p className="mt-1 text-sm text-red-600">
-                                                    {errors[field.name]}
-                                                </p>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="mt-8">
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="w-full rounded-md bg-indigo-600 px-4 py-3 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-                                >
-                                    {processing ? 'Submitting...' : formData.submit_button_text}
-                                </button>
-                            </div>
-                        </form>
+            <div className="p-4">
+                {flash.success && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-green-800">{flash.success}</p>
                     </div>
-                </div>
+                )}
+
+                <form onSubmit={submit}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {formData.fields.map((field) => {
+                            if (!isFieldVisible(field)) {
+                                return null;
+                            }
+                            return (
+                                <div
+                                    key={field.id}
+                                    className={`${getWidthClass(field.width)} ${
+                                        field.type === 'hidden' ? 'hidden' : ''
+                                    }`}
+                                >
+                                    {!['checkbox', 'hidden', 'section', 'html'].includes(field.type) && (
+                                        <label
+                                            htmlFor={field.name}
+                                            className="block text-sm font-medium text-gray-700"
+                                        >
+                                            {field.label}
+                                            {field.required && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
+                                        </label>
+                                    )}
+
+                                    {renderField(field)}
+
+                                    {field.help_text && !['section', 'html'].includes(field.type) && (
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            {field.help_text}
+                                        </p>
+                                    )}
+
+                                    {errors[field.name] && (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            {errors[field.name]}
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-6">
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                            {processing ? 'Submitting...' : formData.submit_button_text}
+                        </button>
+                    </div>
+                </form>
             </div>
-        </div>
+        </>
     );
 }

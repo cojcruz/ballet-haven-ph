@@ -60,13 +60,16 @@ Route::middleware(['auth', 'verified'])
         Route::get('/', [FormController::class, 'index'])->name('index');
         Route::get('/create', [FormController::class, 'create'])->name('create');
         Route::post('/', [FormController::class, 'store'])->name('store');
+        Route::post('/import', [FormController::class, 'import'])->name('import');
         Route::get('/{form}/edit', [FormController::class, 'edit'])->name('edit');
         Route::put('/{form}', [FormController::class, 'update'])->name('update');
         Route::delete('/{form}', [FormController::class, 'destroy'])->name('destroy');
         Route::get('/{form}/submissions', [FormController::class, 'submissions'])->name('submissions');
+        Route::get('/{form}/export', [FormController::class, 'export'])->name('export');
     });
 
 Route::get('/form/{slug}', [FormController::class, 'showPublic'])->name('forms.public.show');
 Route::post('/form/{slug}', [FormController::class, 'submitPublic'])->name('forms.public.submit');
+Route::get('/form/{slug}/embed', [FormController::class, 'embed'])->name('forms.public.embed');
 
 require __DIR__.'/auth.php';
