@@ -21,7 +21,7 @@ class PublicController extends Controller
             return Inertia::render('Home');
         }
 
-        return Inertia::render('Cms/Show', [
+        return Inertia::render('cms/Show', [
             'page' => $page,
         ]);
     }
@@ -34,7 +34,7 @@ class PublicController extends Controller
             ->with('blocks')
             ->firstOrFail();
 
-        return Inertia::render('Cms/Show', [
+        return Inertia::render('cms/Show', [
             'page' => $page,
         ]);
     }
