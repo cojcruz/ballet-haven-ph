@@ -13,14 +13,14 @@ class EventController extends Controller
     {
         $events = Event::orderBy('start_date', 'desc')->get();
 
-        return Inertia::render('Events/Index', [
+        return Inertia::render('events/Index', [
             'events' => $events,
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('Events/Create');
+        return Inertia::render('events/Create');
     }
 
     public function store(Request $request)
@@ -50,7 +50,7 @@ class EventController extends Controller
 
     public function edit(Event $event)
     {
-        return Inertia::render('Events/Edit', [
+        return Inertia::render('events/Edit', [
             'event' => $event,
         ]);
     }
