@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import RichTextEditor from '@/Components/Cms/RichTextEditor';
+import RichTextEditor from '@/components/Cms/RichTextEditor';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 
 type CmsBlock = {
