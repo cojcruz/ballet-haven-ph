@@ -12,7 +12,8 @@ type FormFieldType = {
     help_text: string;
     default_value: string;
     options: { label: string; value: string }[];
-    repeater_fields: { label: string; name: string; type: string; auto_populate_from?: string }[];
+    repeater_fields: { label: string; name: string; type: string; auto_populate_from?: string; allowed_file_types?: string }[];
+    default_repeater_sets: number;
     required: boolean;
     width: string;
     conditional_field: string;
@@ -114,6 +115,7 @@ export default function Edit({ form: initialForm }: Props) {
             default_value: f.default_value || '',
             options: f.options || [],
             repeater_fields: f.repeater_fields || [],
+            default_repeater_sets: (f as unknown as { default_repeater_sets?: number }).default_repeater_sets || 1,
             required: f.required,
             width: f.width,
             conditional_field: f.conditional_field || '',
@@ -125,6 +127,7 @@ export default function Edit({ form: initialForm }: Props) {
     });
 
     const [expandedField, setExpandedField] = useState<number | null>(null);
+    const [builderErrors, setBuilderErrors] = useState<string[]>([]);
 
     const addField = (type: string) => {
         const newField: FormFieldType = {
@@ -136,6 +139,7 @@ export default function Edit({ form: initialForm }: Props) {
             default_value: '',
             options: [],
             repeater_fields: [],
+            default_repeater_sets: 1,
             required: false,
             width: 'full',
             conditional_field: '',
@@ -225,24 +229,34 @@ export default function Edit({ form: initialForm }: Props) {
 
     const addRepeaterField = (fieldIndex: number) => {
         const newFields = [...data.fields];
+        const nextIndex = (newFields[fieldIndex].repeater_fields?.length || 0) + 1;
         newFields[fieldIndex].repeater_fields = [
             ...newFields[fieldIndex].repeater_fields,
-            { label: '', name: '', type: 'text' },
+            { label: '', name: `sub_field_${nextIndex}`, type: 'text' },
         ];
         setData('fields', newFields);
     };
 
-    const updateRepeaterField = (fieldIndex: number, subFieldIndex: number, updates: { label?: string; name?: string; type?: string; auto_populate_from?: string }) => {
+    const updateRepeaterField = (
+        fieldIndex: number,
+        subFieldIndex: number,
+        updates: { label?: string; name?: string; type?: string; auto_populate_from?: string; allowed_file_types?: string },
+    ) => {
         const newFields = [...data.fields];
         newFields[fieldIndex].repeater_fields[subFieldIndex] = {
             ...newFields[fieldIndex].repeater_fields[subFieldIndex],
             ...updates,
         };
-        if (updates.label !== undefined) {
-            newFields[fieldIndex].repeater_fields[subFieldIndex].name = updates.label
+        const currentName = newFields[fieldIndex].repeater_fields[subFieldIndex].name;
+        const isAutoName = !currentName || /^sub_field_\d+$/.test(currentName);
+
+        if (updates.label !== undefined && isAutoName) {
+            const safeName = updates.label
+                .trim()
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '_')
                 .replace(/^_|_$/g, '');
+            newFields[fieldIndex].repeater_fields[subFieldIndex].name = safeName || `sub_field_${subFieldIndex + 1}`;
         }
         setData('fields', newFields);
     };
@@ -253,8 +267,108 @@ export default function Edit({ form: initialForm }: Props) {
         setData('fields', newFields);
     };
 
+    const validateBuilder = () => {
+        const messages: string[] = [];
+        let firstInvalidFieldIndex: number | null = null;
+
+        if (!data.title || data.title.trim() === '') {
+            messages.push('Form title is required.');
+        }
+
+        if (!data.fields || data.fields.length === 0) {
+            messages.push('Add at least one field.');
+        }
+
+        const seenNames = new Set<string>();
+        data.fields.forEach((field, index) => {
+            const label = (field.label || '').trim();
+            const name = (field.name || '').trim();
+
+            if (!label) {
+                messages.push(`Field #${index + 1}: Label is required.`);
+                if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+            }
+
+            if (!name) {
+                messages.push(`Field #${index + 1}: Field name is missing (set a label first).`);
+                if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+            } else if (seenNames.has(name)) {
+                messages.push(`Field #${index + 1}: Duplicate field name '${name}'.`);
+                if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+            } else {
+                seenNames.add(name);
+            }
+
+            if (['select', 'radio', 'checkbox'].includes(field.type)) {
+                const validOptions = (field.options || []).filter(
+                    (o) => (o.label || '').trim() !== '' && (o.value || '').trim() !== '',
+                );
+                if (validOptions.length === 0) {
+                    messages.push(`Field #${index + 1}: Add at least one option (label and value).`);
+                    if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                }
+            }
+
+            if (field.type === 'repeater') {
+                const count = Number(field.default_repeater_sets || 1);
+                if (!Number.isFinite(count) || count < 1 || count > 50) {
+                    messages.push(`Field #${index + 1}: Default entries must be between 1 and 50.`);
+                    if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                }
+
+                if (!field.repeater_fields || field.repeater_fields.length === 0) {
+                    messages.push(`Field #${index + 1}: Add at least one repeater sub-field.`);
+                    if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                }
+
+                const seenSubKeys = new Set<string>();
+                (field.repeater_fields || []).forEach((subField, subIndex) => {
+                    const subType = (subField.type || '').trim();
+                    const subLabel = (subField.label || '').trim();
+                    const subName = (subField.name || '').trim();
+
+                    const key = subName || `sub_field_${subIndex + 1}`;
+                    if (seenSubKeys.has(key)) {
+                        messages.push(`Field #${index + 1}: Duplicate repeater sub-field name '${key}'.`);
+                        if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                    }
+                    seenSubKeys.add(key);
+
+                    if (!subType) {
+                        messages.push(`Field #${index + 1}: Repeater sub-field #${subIndex + 1} type is required.`);
+                        if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                    }
+
+                    if (subType === 'hidden') {
+                        if (!subName) {
+                            messages.push(`Field #${index + 1}: Hidden repeater sub-field #${subIndex + 1} name is required.`);
+                            if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                        }
+                    } else {
+                        if (!subLabel) {
+                            messages.push(`Field #${index + 1}: Repeater sub-field #${subIndex + 1} label is required.`);
+                            if (firstInvalidFieldIndex === null) firstInvalidFieldIndex = index;
+                        }
+                    }
+                });
+            }
+        });
+
+        return { messages, firstInvalidFieldIndex };
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        const result = validateBuilder();
+        if (result.messages.length > 0) {
+            setBuilderErrors(result.messages);
+            if (result.firstInvalidFieldIndex !== null) {
+                setExpandedField(result.firstInvalidFieldIndex);
+            }
+            return;
+        }
+
+        setBuilderErrors([]);
         put(route('forms.update', initialForm.id));
     };
 
@@ -599,6 +713,25 @@ export default function Edit({ form: initialForm }: Props) {
 
                                                     {field.type === 'repeater' && (
                                                         <div>
+                                                            <div className="grid grid-cols-2 gap-4 mb-3">
+                                                                <div>
+                                                                    <label className="block text-sm font-medium text-gray-700">
+                                                                        Default Entries
+                                                                    </label>
+                                                                    <input
+                                                                        type="number"
+                                                                        min={1}
+                                                                        max={50}
+                                                                        value={field.default_repeater_sets}
+                                                                        onChange={(e) =>
+                                                                            updateField(index, {
+                                                                                default_repeater_sets: Number(e.target.value || 1),
+                                                                            })
+                                                                        }
+                                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                                                 Repeater Sub-Fields
                                                             </label>
@@ -609,16 +742,43 @@ export default function Edit({ form: initialForm }: Props) {
                                                                 {field.repeater_fields.map((subField, subIndex) => (
                                                                     <div key={subIndex} className="p-2 bg-gray-50 rounded space-y-2">
                                                                         <div className="flex items-center gap-2">
-                                                                            <input
-                                                                                type="text"
-                                                                                value={subField.label}
-                                                                                onChange={(e) => updateRepeaterField(index, subIndex, { label: e.target.value })}
-                                                                                placeholder="Field label"
-                                                                                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                                                                            />
+                                                                            {subField.type === 'hidden' ? (
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={subField.name}
+                                                                                    onChange={(e) => updateRepeaterField(index, subIndex, { name: e.target.value })}
+                                                                                    placeholder="Field name"
+                                                                                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                                                                />
+                                                                            ) : (
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={subField.label}
+                                                                                    onChange={(e) => updateRepeaterField(index, subIndex, { label: e.target.value })}
+                                                                                    placeholder="Field label"
+                                                                                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                                                                />
+                                                                            )}
                                                                             <select
                                                                                 value={subField.type}
-                                                                                onChange={(e) => updateRepeaterField(index, subIndex, { type: e.target.value })}
+                                                                                onChange={(e) => {
+                                                                                    const nextType = e.target.value;
+
+                                                                                    if (nextType === 'hidden' && !subField.name) {
+                                                                                        const base = subField.label?.trim() !== ''
+                                                                                            ? subField.label
+                                                                                            : `hidden_field_${subIndex + 1}`;
+                                                                                        const safeName = base
+                                                                                            .toLowerCase()
+                                                                                            .replace(/[^a-z0-9]+/g, '_')
+                                                                                            .replace(/^_|_$/g, '');
+
+                                                                                        updateRepeaterField(index, subIndex, { type: nextType, name: safeName });
+                                                                                        return;
+                                                                                    }
+
+                                                                                    updateRepeaterField(index, subIndex, { type: nextType });
+                                                                                }}
                                                                                 className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
                                                                             >
                                                                                 {REPEATER_FIELD_TYPES.map((t) => (
@@ -662,6 +822,28 @@ export default function Edit({ form: initialForm }: Props) {
                                                                                 </select>
                                                                             )}
                                                                         </div>
+                                                                        {subField.type === 'file' && (
+                                                                            <div>
+                                                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                                                    Allowed File Types
+                                                                                </label>
+                                                                                <select
+                                                                                    value={subField.allowed_file_types || ''}
+                                                                                    onChange={(e) =>
+                                                                                        updateRepeaterField(index, subIndex, {
+                                                                                            allowed_file_types: e.target.value,
+                                                                                        })
+                                                                                    }
+                                                                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs"
+                                                                                >
+                                                                                    {FILE_TYPE_OPTIONS.map((opt) => (
+                                                                                        <option key={opt.value} value={opt.value}>
+                                                                                            {opt.label}
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 ))}
                                                                 <button
@@ -826,6 +1008,17 @@ export default function Edit({ form: initialForm }: Props) {
                                 </div>
                             )}
                         </div>
+
+                        {builderErrors.length > 0 && (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                                <p className="text-sm font-medium text-red-800">Fix these issues before saving:</p>
+                                <ul className="mt-2 list-disc pl-5 text-sm text-red-700 space-y-1">
+                                    {builderErrors.map((m, i) => (
+                                        <li key={i}>{m}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
 
                         {/* Actions */}
                         <div className="flex items-center justify-end gap-4">

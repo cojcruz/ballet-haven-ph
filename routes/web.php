@@ -65,6 +65,8 @@ Route::middleware(['auth', 'verified'])
         Route::put('/{form}', [FormController::class, 'update'])->name('update');
         Route::delete('/{form}', [FormController::class, 'destroy'])->name('destroy');
         Route::get('/{form}/submissions', [FormController::class, 'submissions'])->name('submissions');
+        Route::get('/{form}/submissions/{submission}', [FormController::class, 'showSubmission'])->name('submissions.show');
+        Route::get('/{form}/submissions-export', [FormController::class, 'exportSubmissions'])->name('submissions.export');
         Route::get('/{form}/export', [FormController::class, 'export'])->name('export');
     });
 

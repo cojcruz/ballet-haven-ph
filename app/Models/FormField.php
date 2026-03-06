@@ -23,6 +23,7 @@ class FormField extends Model
         'conditional_field',
         'conditional_value',
         'repeater_fields',
+        'default_repeater_sets',
         'html_content',
         'allowed_file_types',
         'auto_populate_from',
@@ -33,6 +34,7 @@ class FormField extends Model
         'validation_rules' => 'array',
         'required' => 'boolean',
         'repeater_fields' => 'array',
+        'default_repeater_sets' => 'integer',
     ];
 
     public function form(): BelongsTo
