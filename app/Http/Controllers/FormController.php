@@ -17,14 +17,14 @@ class FormController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return Inertia::render('forms/Index', [
+        return Inertia::render('Forms/Index', [
             'forms' => $forms,
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('forms/Create');
+        return Inertia::render('Forms/Create');
     }
 
     public function store(Request $request)
@@ -107,7 +107,7 @@ class FormController extends Controller
     {
         $form->load('fields');
 
-        return Inertia::render('forms/Edit', [
+        return Inertia::render('Forms/Edit', [
             'form' => $form,
         ]);
     }
@@ -206,7 +206,7 @@ class FormController extends Controller
 
         $form->load('fields');
 
-        return Inertia::render('forms/Submissions', [
+        return Inertia::render('Forms/Submissions', [
             'form' => $form,
             'submissions' => $submissions,
         ]);
@@ -220,7 +220,7 @@ class FormController extends Controller
 
         $form->load('fields');
 
-        return Inertia::render('forms/SubmissionShow', [
+        return Inertia::render('Forms/SubmissionShow', [
             'form' => $form,
             'submission' => $submission,
         ]);
@@ -426,7 +426,7 @@ class FormController extends Controller
             ->with('fields')
             ->firstOrFail();
 
-        return Inertia::render('forms/Show', [
+        return Inertia::render('Forms/Show', [
             'form' => $form,
         ]);
     }
@@ -522,7 +522,7 @@ class FormController extends Controller
             ->with('fields')
             ->firstOrFail();
 
-        return Inertia::render('forms/Embed', [
+        return Inertia::render('Forms/Embed', [
             'form' => $form,
         ]);
     }
