@@ -1,4 +1,4 @@
-import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 
 type Event = {
