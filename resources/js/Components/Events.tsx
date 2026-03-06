@@ -1,5 +1,5 @@
 import { Calendar, Clock, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/Components/ui/button";
 import performanceImage from "@/assets/performance.jpg";
 import { useState, useEffect } from "react";
 import axios from "axios";
