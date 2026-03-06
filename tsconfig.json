@@ -17,5 +17,5 @@
         }
     },
     "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "resources/js/**/*.d.ts"],
-    "exclude": ["resources/js/components/**/*"]
+    "exclude": ["resources/js/Components/**/*"]
 }
