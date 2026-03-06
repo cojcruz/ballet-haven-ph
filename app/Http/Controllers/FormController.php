@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Form;
 use App\Models\FormField;
+use App\Models\FormSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -52,6 +53,7 @@ class FormController extends Controller
             'fields.*.conditional_field' => 'nullable|string',
             'fields.*.conditional_value' => 'nullable|string',
             'fields.*.repeater_fields' => 'nullable|array',
+            'fields.*.default_repeater_sets' => 'nullable|integer|min:1|max:50',
             'fields.*.html_content' => 'nullable|string',
             'fields.*.allowed_file_types' => 'nullable|string',
             'fields.*.auto_populate_from' => 'nullable|string',
@@ -90,6 +92,7 @@ class FormController extends Controller
                     'conditional_field' => $fieldData['conditional_field'] ?? null,
                     'conditional_value' => $fieldData['conditional_value'] ?? null,
                     'repeater_fields' => $fieldData['repeater_fields'] ?? null,
+                    'default_repeater_sets' => $fieldData['default_repeater_sets'] ?? 1,
                     'html_content' => $fieldData['html_content'] ?? null,
                     'allowed_file_types' => $fieldData['allowed_file_types'] ?? null,
                     'auto_populate_from' => $fieldData['auto_populate_from'] ?? null,
@@ -135,6 +138,7 @@ class FormController extends Controller
             'fields.*.conditional_field' => 'nullable|string',
             'fields.*.conditional_value' => 'nullable|string',
             'fields.*.repeater_fields' => 'nullable|array',
+            'fields.*.default_repeater_sets' => 'nullable|integer|min:1|max:50',
             'fields.*.html_content' => 'nullable|string',
             'fields.*.allowed_file_types' => 'nullable|string',
             'fields.*.auto_populate_from' => 'nullable|string',
@@ -176,6 +180,7 @@ class FormController extends Controller
                     'conditional_field' => $fieldData['conditional_field'] ?? null,
                     'conditional_value' => $fieldData['conditional_value'] ?? null,
                     'repeater_fields' => $fieldData['repeater_fields'] ?? null,
+                    'default_repeater_sets' => $fieldData['default_repeater_sets'] ?? 1,
                     'html_content' => $fieldData['html_content'] ?? null,
                     'allowed_file_types' => $fieldData['allowed_file_types'] ?? null,
                     'auto_populate_from' => $fieldData['auto_populate_from'] ?? null,
@@ -204,6 +209,213 @@ class FormController extends Controller
         return Inertia::render('forms/Submissions', [
             'form' => $form,
             'submissions' => $submissions,
+        ]);
+    }
+
+    public function showSubmission(Form $form, FormSubmission $submission)
+    {
+        if ((int) $submission->form_id !== (int) $form->id) {
+            abort(404);
+        }
+
+        $form->load('fields');
+
+        return Inertia::render('forms/SubmissionShow', [
+            'form' => $form,
+            'submission' => $submission,
+        ]);
+    }
+
+    public function exportSubmissions(Request $request, Form $form)
+    {
+        $format = strtolower(trim((string) $request->query('format', 'csv')));
+        if (!in_array($format, ['csv', 'xls', 'html'], true)) {
+            abort(400, 'Invalid export format.');
+        }
+
+        $form->load('fields');
+
+        $submissions = $form->submissions()
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'data', 'ip_address', 'user_agent', 'created_at']);
+
+        $toStorageHref = function (?string $path): string {
+            $p = trim((string) $path);
+            if ($p === '') {
+                return '';
+            }
+            if (str_starts_with($p, 'http://') || str_starts_with($p, 'https://')) {
+                return $p;
+            }
+            if (str_starts_with($p, '/storage/')) {
+                return url($p);
+            }
+            return url('/storage/' . ltrim($p, '/'));
+        };
+
+        $valueToString = function ($value, FormField $field) use ($toStorageHref): string {
+            if ($value === null) {
+                return '';
+            }
+            if (is_bool($value)) {
+                return $value ? 'Yes' : 'No';
+            }
+
+            if ($field->type === 'file') {
+                if (is_string($value)) {
+                    return $toStorageHref($value);
+                }
+                return '';
+            }
+
+            if ($field->type === 'multi_file') {
+                if (is_array($value)) {
+                    $links = [];
+                    foreach ($value as $v) {
+                        if (is_string($v)) {
+                            $href = $toStorageHref($v);
+                            if ($href !== '') {
+                                $links[] = $href;
+                            }
+                        }
+                    }
+                    return implode("\n", $links);
+                }
+                return '';
+            }
+
+            if ($field->type === 'repeater') {
+                if (!is_array($value) || count($value) === 0) {
+                    return '';
+                }
+
+                $subFields = is_array($field->repeater_fields) ? $field->repeater_fields : [];
+                $subFields = array_values(array_filter($subFields, function ($sf) {
+                    return is_array($sf) && strtolower(trim((string) ($sf['type'] ?? ''))) !== 'hidden';
+                }));
+
+                $lines = [];
+                foreach ($value as $rowIndex => $row) {
+                    if (!is_array($row)) {
+                        $lines[] = 'Entry ' . ((int) $rowIndex + 1) . ': ' . (string) $row;
+                        continue;
+                    }
+
+                    $parts = [];
+                    foreach ($subFields as $sf) {
+                        $key = trim((string) ($sf['name'] ?? ''));
+                        if ($key === '') {
+                            continue;
+                        }
+                        $label = trim((string) ($sf['label'] ?? $key));
+                        $subType = strtolower(trim((string) ($sf['type'] ?? 'text')));
+                        $v = $row[$key] ?? null;
+
+                        $sv = '';
+                        if (is_bool($v)) {
+                            $sv = $v ? 'Yes' : 'No';
+                        } elseif ($subType === 'file') {
+                            $sv = is_string($v) ? $toStorageHref($v) : '';
+                        } elseif (is_array($v)) {
+                            $sv = implode(', ', array_map(fn ($x) => is_scalar($x) ? (string) $x : json_encode($x), $v));
+                        } elseif ($v === null) {
+                            $sv = '';
+                        } else {
+                            $sv = is_scalar($v) ? (string) $v : json_encode($v);
+                        }
+
+                        $parts[] = $label . ': ' . $sv;
+                    }
+
+                    $lines[] = 'Entry ' . ((int) $rowIndex + 1) . (count($parts) ? ' - ' . implode(' | ', $parts) : '');
+                }
+
+                return implode("\n", $lines);
+            }
+
+            if (is_array($value)) {
+                return implode(', ', array_map(fn ($x) => is_scalar($x) ? (string) $x : json_encode($x), $value));
+            }
+
+            if (is_scalar($value)) {
+                return (string) $value;
+            }
+
+            return json_encode($value);
+        };
+
+        $headers = ['Date'];
+        foreach ($form->fields as $field) {
+            $headers[] = $field->label;
+        }
+        $headers[] = 'IP';
+        $headers[] = 'User Agent';
+
+        $rows = [];
+        foreach ($submissions as $submission) {
+            $row = [];
+            $row[] = optional($submission->created_at)->toDateTimeString() ?? '';
+
+            $data = is_array($submission->data) ? $submission->data : [];
+            foreach ($form->fields as $field) {
+                $row[] = $valueToString($data[$field->name] ?? null, $field);
+            }
+
+            $row[] = (string) ($submission->ip_address ?? '');
+            $row[] = (string) ($submission->user_agent ?? '');
+
+            $rows[] = $row;
+        }
+
+        $baseFilename = Str::slug($form->title) . '-submissions-' . now()->format('Ymd_His');
+
+        if ($format === 'csv') {
+            return response()->streamDownload(function () use ($headers, $rows) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, $headers);
+                foreach ($rows as $row) {
+                    fputcsv($out, $row);
+                }
+                fclose($out);
+            }, $baseFilename . '.csv', [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        }
+
+        $escapeHtml = function (string $s): string {
+            return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        };
+
+        $html = '<!doctype html><html><head><meta charset="utf-8"><title>' . $escapeHtml($form->title) . ' Submissions</title>';
+        $html .= '<style>body{font-family:ui-sans-serif,system-ui,Arial,sans-serif;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px;vertical-align:top}th{background:#f5f5f5;text-align:left}td{white-space:pre-wrap}</style>';
+        $html .= '</head><body>';
+        $html .= '<h2>' . $escapeHtml($form->title) . ' - Submissions</h2>';
+        $html .= '<p>Total: ' . count($rows) . '</p>';
+        $html .= '<table><thead><tr>';
+        foreach ($headers as $h) {
+            $html .= '<th>' . $escapeHtml((string) $h) . '</th>';
+        }
+        $html .= '</tr></thead><tbody>';
+        foreach ($rows as $row) {
+            $html .= '<tr>';
+            foreach ($row as $cell) {
+                $html .= '<td>' . $escapeHtml((string) $cell) . '</td>';
+            }
+            $html .= '</tr>';
+        }
+        $html .= '</tbody></table>';
+        $html .= '</body></html>';
+
+        if ($format === 'xls') {
+            return response($html, 200, [
+                'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $baseFilename . '.xls"',
+            ]);
+        }
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $baseFilename . '.html"',
         ]);
     }
 
@@ -241,6 +453,7 @@ class FormController extends Controller
                     'default_value' => $field->default_value,
                     'options' => $field->options,
                     'repeater_fields' => $field->repeater_fields,
+                    'default_repeater_sets' => $field->default_repeater_sets,
                     'required' => $field->required,
                     'width' => $field->width,
                     'conditional_field' => $field->conditional_field,
@@ -289,6 +502,7 @@ class FormController extends Controller
                 'default_value' => $fieldData['default_value'] ?? null,
                 'options' => $fieldData['options'] ?? null,
                 'repeater_fields' => $fieldData['repeater_fields'] ?? null,
+                'default_repeater_sets' => $fieldData['default_repeater_sets'] ?? 1,
                 'required' => $fieldData['required'] ?? false,
                 'order' => $index,
                 'width' => $fieldData['width'] ?? 'full',
@@ -320,6 +534,86 @@ class FormController extends Controller
             ->with('fields')
             ->firstOrFail();
 
+        $fileTypeRulesFromAccept = function (?string $accept): array {
+            $accept = trim((string) $accept);
+            if ($accept === '') {
+                return [];
+            }
+
+            $parts = array_values(array_filter(array_map('trim', explode(',', $accept))));
+
+            $exts = [];
+            $mimetypes = [];
+            foreach ($parts as $part) {
+                if ($part === '') {
+                    continue;
+                }
+
+                if (str_starts_with($part, '.')) {
+                    $exts[] = strtolower(ltrim($part, '.'));
+                    continue;
+                }
+
+                $lower = strtolower($part);
+
+                if ($lower === 'image/*') {
+                    $exts = array_merge($exts, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
+                    continue;
+                }
+                if ($lower === 'video/*') {
+                    $exts = array_merge($exts, ['mp4', 'mov', 'webm', 'avi', 'mkv']);
+                    continue;
+                }
+                if ($lower === 'audio/*') {
+                    $exts = array_merge($exts, ['mp3', 'wav', 'ogg', 'm4a']);
+                    continue;
+                }
+
+                if ($lower === 'application/pdf') {
+                    $exts[] = 'pdf';
+                    continue;
+                }
+                if ($lower === 'image/jpeg') {
+                    $exts = array_merge($exts, ['jpg', 'jpeg']);
+                    continue;
+                }
+                if ($lower === 'image/png') {
+                    $exts[] = 'png';
+                    continue;
+                }
+                if ($lower === 'image/gif') {
+                    $exts[] = 'gif';
+                    continue;
+                }
+                if ($lower === 'image/webp') {
+                    $exts[] = 'webp';
+                    continue;
+                }
+
+                if (str_contains($lower, '/')) {
+                    $mimetypes[] = $lower;
+                    continue;
+                }
+
+                // Treat as extension if user entered "pdf" instead of ".pdf"
+                if (preg_match('/^[a-z0-9]+$/', $lower)) {
+                    $exts[] = $lower;
+                }
+            }
+
+            $exts = array_values(array_unique(array_filter($exts)));
+            if (count($exts) > 0) {
+                return ['mimes:' . implode(',', $exts)];
+            }
+
+            $mimetypes = array_values(array_unique(array_filter($mimetypes)));
+            if (count($mimetypes) > 0) {
+                return ['mimetypes:' . implode(',', $mimetypes)];
+            }
+
+            return [];
+        };
+
         // Build validation rules from form fields
         $rules = [];
         foreach ($form->fields as $field) {
@@ -331,6 +625,11 @@ class FormController extends Controller
             }
 
             switch ($field->type) {
+                case 'text':
+                case 'textarea':
+                case 'hidden':
+                    $fieldRules[] = 'string';
+                    break;
                 case 'email':
                     $fieldRules[] = 'email';
                     break;
@@ -340,19 +639,81 @@ class FormController extends Controller
                 case 'date':
                     $fieldRules[] = 'date';
                     break;
+                case 'select':
+                case 'radio':
+                    $fieldRules[] = 'string';
+                    if (is_array($field->options)) {
+                        $values = array_values(array_filter(array_map(fn ($o) => $o['value'] ?? null, $field->options)));
+                        if (count($values) > 0) {
+                            $fieldRules[] = 'in:' . implode(',', $values);
+                        }
+                    }
+                    break;
                 case 'file':
                     $fieldRules[] = 'file';
                     $fieldRules[] = 'max:10240';
+                    $fieldRules = array_merge($fieldRules, $fileTypeRulesFromAccept($field->allowed_file_types));
                     break;
                 case 'multi_file':
                     $fieldRules = $field->required ? ['required', 'array'] : ['nullable', 'array'];
-                    $rules[$field->name . '.*'] = ['file', 'max:10240'];
+                    $rules[$field->name . '.*'] = array_merge(['file', 'max:10240'], $fileTypeRulesFromAccept($field->allowed_file_types));
                     break;
                 case 'repeater':
                     $fieldRules = $field->required ? ['required', 'array'] : ['nullable', 'array'];
+                    $rules[$field->name . '.*'] = ['array'];
+
+                    $repeaterFields = is_array($field->repeater_fields) ? $field->repeater_fields : [];
+                    foreach ($repeaterFields as $subIndex => $subField) {
+                        if (!is_array($subField)) {
+                            continue;
+                        }
+
+                        $subType = trim((string) ($subField['type'] ?? 'text'));
+                        $subName = trim((string) ($subField['name'] ?? ''));
+                        if ($subName === '') {
+                            $label = trim((string) ($subField['label'] ?? ''));
+                            $safe = strtolower($label);
+                            $safe = preg_replace('/[^a-z0-9]+/', '_', $safe);
+                            $safe = trim((string) $safe, '_');
+                            $subName = $safe !== '' ? $safe : ('sub_field_' . ($subIndex + 1));
+                        }
+
+                        $subRules = ['nullable'];
+                        switch ($subType) {
+                            case 'email':
+                                $subRules[] = 'email';
+                                break;
+                            case 'number':
+                                $subRules[] = 'numeric';
+                                break;
+                            case 'date':
+                                $subRules[] = 'date';
+                                break;
+                            case 'checkbox':
+                                $subRules[] = 'boolean';
+                                break;
+                            case 'file':
+                                $subRules[] = 'file';
+                                $subRules[] = 'max:10240';
+                                $subRules = array_merge($subRules, $fileTypeRulesFromAccept($subField['allowed_file_types'] ?? null));
+                                break;
+                            case 'multi_file':
+                                $subRules = ['nullable', 'array'];
+                                $rules[$field->name . '.*.' . $subName . '.*'] = array_merge(['file', 'max:10240'], $fileTypeRulesFromAccept($subField['allowed_file_types'] ?? null));
+                                break;
+                            default:
+                                $subRules[] = 'string';
+                                break;
+                        }
+
+                        $rules[$field->name . '.*.' . $subName] = $subRules;
+                    }
                     break;
                 case 'checkbox':
-                    $fieldRules = ['nullable'];
+                    $fieldRules = ['nullable', 'boolean'];
+                    break;
+                default:
+                    $fieldRules[] = 'string';
                     break;
             }
 
@@ -374,7 +735,39 @@ class FormController extends Controller
                 }
                 $data[$field->name] = $paths;
             } elseif ($field->type === 'repeater') {
-                $data[$field->name] = $request->input($field->name, []);
+                $entries = $request->input($field->name, []);
+                if (!is_array($entries)) {
+                    $entries = [];
+                }
+
+                $repeaterFiles = $request->file($field->name, []);
+                if (is_array($repeaterFiles)) {
+                    foreach ($repeaterFiles as $rowIndex => $rowFiles) {
+                        if (!is_array($rowFiles)) {
+                            continue;
+                        }
+
+                        if (!isset($entries[$rowIndex]) || !is_array($entries[$rowIndex])) {
+                            $entries[$rowIndex] = [];
+                        }
+
+                        foreach ($rowFiles as $subKey => $fileOrFiles) {
+                            if (is_array($fileOrFiles)) {
+                                $paths = [];
+                                foreach ($fileOrFiles as $file) {
+                                    if ($file) {
+                                        $paths[] = $file->store('form-uploads', 'public');
+                                    }
+                                }
+                                $entries[$rowIndex][$subKey] = $paths;
+                            } elseif ($fileOrFiles) {
+                                $entries[$rowIndex][$subKey] = $fileOrFiles->store('form-uploads', 'public');
+                            }
+                        }
+                    }
+                }
+
+                $data[$field->name] = $entries;
             } else {
                 $data[$field->name] = $validated[$field->name] ?? null;
             }

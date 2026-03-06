@@ -11,7 +11,8 @@ type FormField = {
     help_text: string | null;
     default_value: string | null;
     options: { label: string; value: string }[] | null;
-    repeater_fields: { label: string; name: string; type: string; auto_populate_from?: string }[] | null;
+    repeater_fields: { label: string; name: string; type: string; auto_populate_from?: string; allowed_file_types?: string }[] | null;
+    default_repeater_sets?: number | null;
     required: boolean;
     width: string;
     conditional_field: string | null;
@@ -40,12 +41,14 @@ export default function Embed({ form: formData }: Props) {
     const pageProps = usePage().props as unknown as { flash?: { success?: string } };
     const flash = pageProps.flash || {};
 
-    const initialData: Record<string, string | boolean | File | File[] | null> = {};
+    const initialData: Record<string, string | boolean | File | File[] | RepeaterEntry[] | null> = {};
     formData.fields.forEach((field) => {
         if (field.type === 'checkbox') {
             initialData[field.name] = false;
         } else if (field.type === 'multi_file') {
             initialData[field.name] = null;
+        } else if (field.type === 'repeater') {
+            initialData[field.name] = [];
         } else {
             initialData[field.name] = field.default_value || '';
         }
@@ -55,7 +58,8 @@ export default function Embed({ form: formData }: Props) {
         const initial: Record<string, RepeaterEntry[]> = {};
         formData.fields.forEach((field) => {
             if (field.type === 'repeater') {
-                initial[field.name] = [{}];
+                const count = Math.min(50, Math.max(1, Number(field.default_repeater_sets || 1)));
+                initial[field.name] = Array.from({ length: count }, () => ({}));
             }
         });
         return initial;
@@ -83,7 +87,34 @@ export default function Embed({ form: formData }: Props) {
         });
     };
 
-    const { data, setData, post, processing, errors, reset } = useForm(initialData);
+    const { data, setData, post, processing, errors, reset, transform } = useForm(initialData);
+
+    const toSafeName = (value: string) =>
+        value
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_|_$/g, '');
+
+    const getRepeaterSubFieldKey = (
+        subField: { label: string; name: string },
+        subFieldIndex: number,
+    ) => {
+        const explicit = (subField.name || '').trim();
+        if (explicit) {
+            return explicit;
+        }
+
+        const fromLabel = toSafeName(subField.label || '');
+        return fromLabel || `sub_field_${subFieldIndex + 1}`;
+    };
+
+    useEffect(() => {
+        transform((current) => ({
+            ...current,
+            ...repeaterData,
+        }));
+    }, [repeaterData, transform]);
 
     // Auto-populate fields based on other field values
     useEffect(() => {
@@ -104,11 +135,12 @@ export default function Embed({ form: formData }: Props) {
                 let hasChanges = false;
                 const updatedEntries = entries.map((entry) => {
                     const newEntry = { ...entry };
-                    field.repeater_fields?.forEach((subField) => {
+                    field.repeater_fields?.forEach((subField, subIndex) => {
                         if (subField.auto_populate_from && data[subField.auto_populate_from] !== undefined) {
                             const sourceValue = data[subField.auto_populate_from];
-                            if (typeof sourceValue === 'string' && newEntry[subField.name] !== sourceValue) {
-                                newEntry[subField.name] = sourceValue;
+                            const key = getRepeaterSubFieldKey(subField, subIndex);
+                            if (typeof sourceValue === 'string' && newEntry[key] !== sourceValue) {
+                                newEntry[key] = sourceValue;
                                 hasChanges = true;
                             }
                         }
@@ -125,15 +157,6 @@ export default function Embed({ form: formData }: Props) {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        const formDataToSubmit = { ...data };
-        Object.keys(repeaterData).forEach((key) => {
-            formDataToSubmit[key] = repeaterData[key] as unknown as string;
-        });
-
-        Object.keys(formDataToSubmit).forEach((key) => {
-            setData(key, formDataToSubmit[key]);
-        });
-
         post(route('forms.public.submit', formData.slug), {
             forceFormData: true,
             onSuccess: () => {
@@ -141,7 +164,8 @@ export default function Embed({ form: formData }: Props) {
                 const initialRepeater: Record<string, RepeaterEntry[]> = {};
                 formData.fields.forEach((field) => {
                     if (field.type === 'repeater') {
-                        initialRepeater[field.name] = [{}];
+                        const count = Math.min(50, Math.max(1, Number(field.default_repeater_sets || 1)));
+                        initialRepeater[field.name] = Array.from({ length: count }, () => ({}));
                     }
                 });
                 setRepeaterData(initialRepeater);
@@ -175,7 +199,9 @@ export default function Embed({ form: formData }: Props) {
         'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
 
     const renderField = (field: FormField) => {
-        switch (field.type) {
+        const fieldType = (field.type || '').trim().toLowerCase();
+
+        switch (fieldType) {
             case 'textarea':
                 return (
                     <textarea
@@ -284,30 +310,48 @@ export default function Embed({ form: formData }: Props) {
                                     )}
                                 </div>
                                 <div className="grid grid-cols-1 gap-2">
-                                    {field.repeater_fields?.map((subField) => (
-                                        <div key={subField.name}>
-                                            <label className="block text-xs font-medium text-gray-600">
-                                                {subField.label}
-                                            </label>
-                                            {subField.type === 'file' ? (
+                                    {field.repeater_fields?.map((subField, subIndex) => {
+                                        const subType = (subField.type || '').trim().toLowerCase();
+                                        const key = getRepeaterSubFieldKey(subField, subIndex);
+
+                                        if (subType === 'hidden') {
+                                            return (
                                                 <input
-                                                    type="file"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0] || null;
-                                                        updateRepeaterEntry(field.name, entryIndex, subField.name, file);
-                                                    }}
-                                                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                    key={key}
+                                                    type="hidden"
+                                                    value={(entry[key] as string) || ''}
                                                 />
-                                            ) : (
-                                                <input
-                                                    type={subField.type}
-                                                    value={(entry[subField.name] as string) || ''}
-                                                    onChange={(e) => updateRepeaterEntry(field.name, entryIndex, subField.name, e.target.value)}
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                                                />
-                                            )}
-                                        </div>
-                                    ))}
+                                            );
+                                        }
+
+                                        return (
+                                            <div key={key}>
+                                                <label className="block text-xs font-medium text-gray-600">
+                                                    {subField.label}
+                                                </label>
+                                                {subType === 'file' ? (
+                                                    <input
+                                                        type="file"
+                                                        accept={subField.allowed_file_types || undefined}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0] || null;
+                                                            updateRepeaterEntry(field.name, entryIndex, key, file);
+                                                        }}
+                                                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                    />
+                                                ) : (
+                                                    <input
+                                                        type={subType}
+                                                        value={(entry[key] as string) || ''}
+                                                        onChange={(e) =>
+                                                            updateRepeaterEntry(field.name, entryIndex, key, e.target.value)
+                                                        }
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
@@ -419,14 +463,15 @@ export default function Embed({ form: formData }: Props) {
                             if (!isFieldVisible(field)) {
                                 return null;
                             }
+
+                            const fieldType = (field.type || '').trim().toLowerCase();
+                            const wrapperClassName = `${getWidthClass(field.width)} ${fieldType === 'hidden' ? 'hidden' : ''}`;
                             return (
                                 <div
                                     key={field.id}
-                                    className={`${getWidthClass(field.width)} ${
-                                        field.type === 'hidden' ? 'hidden' : ''
-                                    }`}
+                                    className={wrapperClassName}
                                 >
-                                    {!['checkbox', 'hidden', 'section', 'html'].includes(field.type) && (
+                                    {!['checkbox', 'hidden', 'section', 'html'].includes(fieldType) && (
                                         <label
                                             htmlFor={field.name}
                                             className="block text-sm font-medium text-gray-700"
@@ -440,7 +485,7 @@ export default function Embed({ form: formData }: Props) {
 
                                     {renderField(field)}
 
-                                    {field.help_text && !['section', 'html'].includes(field.type) && (
+                                    {field.help_text && !['section', 'html'].includes(fieldType) && (
                                         <p className="mt-1 text-sm text-gray-500">
                                             {field.help_text}
                                         </p>
