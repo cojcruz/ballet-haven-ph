@@ -3,6 +3,7 @@ export interface User {
     name: string;
     email: string;
     email_verified_at?: string;
+    role: 'admin' | 'staff' | 'viewer';
 }
 
 export type PageProps<
@@ -10,5 +11,7 @@ export type PageProps<
 > = T & {
     auth: {
         user: User;
+        impersonating: boolean;
+        originalUser: User | null;
     };
 };

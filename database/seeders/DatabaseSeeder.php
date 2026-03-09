@@ -19,10 +19,16 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
+        $this->call(RoleSeeder::class);
+
+        $adminRole = \App\Models\Role::where('slug', 'admin')->first();
+
         User::factory()->create([
             'name' => 'Site Admin',
             'email' => 'admin@abap-inc.org',
             'password' => Hash::make('ab@p2026!'),
+            'role' => 'admin',
+            'role_id' => $adminRole?->id,
         ]);
 
         $page = CmsPage::query()->firstOrCreate(

@@ -14,7 +14,7 @@ class PageController extends Controller
 {
     public function index(Request $request): Response
     {
-        return Inertia::render('cms/pages/Index', [
+        return Inertia::render('Cms/Pages/Index', [
             'pages' => CmsPage::query()
                 ->orderByDesc('is_home')
                 ->orderBy('title')
@@ -24,7 +24,7 @@ class PageController extends Controller
 
     public function create(Request $request): Response
     {
-        return Inertia::render('cms/pages/Create');
+        return Inertia::render('Cms/Pages/Create');
     }
 
     public function store(Request $request): RedirectResponse
@@ -58,7 +58,7 @@ class PageController extends Controller
     {
         $page->load('blocks');
 
-        return Inertia::render('cms/pages/Edit', [
+        return Inertia::render('Cms/Pages/Edit', [
             'page' => $page,
         ]);
     }

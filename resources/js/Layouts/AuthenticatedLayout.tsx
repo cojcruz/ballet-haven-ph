@@ -2,20 +2,38 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 
 export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const user = usePage().props.auth.user;
+    const { auth } = usePage().props;
+    const user = auth.user;
+    const canManageContent = user.role === 'admin' || user.role === 'staff';
+    const isAdmin = user.role === 'admin';
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
+    const stopImpersonating = () => {
+        router.post(route('users.stop-impersonating'));
+    };
+
     return (
         <div className="min-h-screen bg-gray-100">
+            {auth.impersonating && auth.originalUser && (
+                <div className="bg-yellow-500 px-4 py-2 text-center text-sm font-medium text-white">
+                    You are impersonating {user.name}. You are logged in as {auth.originalUser.name}.
+                    <button
+                        onClick={stopImpersonating}
+                        className="ml-4 rounded bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700"
+                    >
+                        Stop Impersonating
+                    </button>
+                </div>
+            )}
             <nav className="border-b border-gray-100 bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
@@ -34,26 +52,55 @@ export default function Authenticated({
                                     Dashboard
                                 </NavLink>
 
-                                <NavLink
-                                    href={route('cms.pages.index')}
-                                    active={route().current('cms.pages.*')}
-                                >
-                                    CMS
-                                </NavLink>
+                                {canManageContent && (
+                                    <NavLink
+                                        href={route('cms.pages.index')}
+                                        active={route().current('cms.pages.*')}
+                                    >
+                                        CMS
+                                    </NavLink>
+                                )}
 
-                                <NavLink
-                                    href={route('events.index')}
-                                    active={route().current('events.*')}
-                                >
-                                    Events
-                                </NavLink>
+                                {canManageContent && (
+                                    <NavLink
+                                        href={route('events.index')}
+                                        active={route().current('events.*')}
+                                    >
+                                        Events
+                                    </NavLink>
+                                )}
 
-                                <NavLink
-                                    href={route('forms.index')}
-                                    active={route().current('forms.*')}
-                                >
-                                    Forms
-                                </NavLink>
+                                {canManageContent && (
+                                    <NavLink
+                                        href={route('forms.index')}
+                                        active={route().current('forms.*')}
+                                    >
+                                        Forms
+                                    </NavLink>
+                                )}
+
+                                {isAdmin && (
+                                    <>
+                                        <NavLink
+                                            href={route('users.index')}
+                                            active={route().current('users.index')}
+                                        >
+                                            Users
+                                        </NavLink>
+                                        <NavLink
+                                            href={route('roles.index')}
+                                            active={route().current('roles.index')}
+                                        >
+                                            Roles
+                                        </NavLink>
+                                        <NavLink
+                                            href={route('test-email.create')}
+                                            active={route().current('test-email.create')}
+                                        >
+                                            Test Email
+                                        </NavLink>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -159,26 +206,59 @@ export default function Authenticated({
                             Dashboard
                         </ResponsiveNavLink>
 
-                        <ResponsiveNavLink
-                            href={route('cms.pages.index')}
-                            active={route().current('cms.pages.*')}
-                        >
-                            CMS
-                        </ResponsiveNavLink>
+                        {canManageContent && (
+                            <ResponsiveNavLink
+                                href={route('cms.pages.index')}
+                                active={route().current('cms.pages.*')}
+                            >
+                                CMS
+                            </ResponsiveNavLink>
+                        )}
 
-                        <ResponsiveNavLink
-                            href={route('events.index')}
-                            active={route().current('events.*')}
-                        >
-                            Events
-                        </ResponsiveNavLink>
+                        {canManageContent && (
+                            <ResponsiveNavLink
+                                href={route('events.index')}
+                                active={route().current('events.*')}
+                            >
+                                Events
+                            </ResponsiveNavLink>
+                        )}
 
-                        <ResponsiveNavLink
-                            href={route('forms.index')}
-                            active={route().current('forms.*')}
-                        >
-                            Forms
-                        </ResponsiveNavLink>
+                        {canManageContent && (
+                            <ResponsiveNavLink
+                                href={route('forms.index')}
+                                active={route().current('forms.*')}
+                            >
+                                Forms
+                            </ResponsiveNavLink>
+                        )}
+
+                        {isAdmin && (
+                            <ResponsiveNavLink
+                                href={route('users.index')}
+                                active={route().current('users.*')}
+                            >
+                                Users
+                            </ResponsiveNavLink>
+                        )}
+
+                        {isAdmin && (
+                            <ResponsiveNavLink
+                                href={route('roles.index')}
+                                active={route().current('roles.*')}
+                            >
+                                Roles
+                            </ResponsiveNavLink>
+                        )}
+
+                        {isAdmin && (
+                            <ResponsiveNavLink
+                                href={route('test-email.create')}
+                                active={route().current('test-email.*')}
+                            >
+                                Test Email
+                            </ResponsiveNavLink>
+                        )}
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4">
