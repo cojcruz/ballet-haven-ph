@@ -6,6 +6,9 @@ use App\Http\Controllers\Cms\PageController;
 use App\Http\Controllers\Cms\PublicController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FormController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\TestEmailController;
+use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -23,7 +26,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware(['auth', 'verified'])
+Route::middleware(['auth', 'verified', 'role:admin,staff'])
     ->prefix('dashboard/cms')
     ->name('cms.')
     ->group(function () {
@@ -39,7 +42,7 @@ Route::middleware(['auth', 'verified'])
         Route::delete('/pages/{page}/blocks/{block}', [BlockController::class, 'destroy'])->name('blocks.destroy');
     });
 
-Route::middleware(['auth', 'verified'])
+Route::middleware(['auth', 'verified', 'role:admin,staff'])
     ->prefix('dashboard/events')
     ->name('events.')
     ->group(function () {
@@ -53,7 +56,7 @@ Route::middleware(['auth', 'verified'])
 
 Route::get('/api/events', [EventController::class, 'publicIndex'])->name('api.events');
 
-Route::middleware(['auth', 'verified'])
+Route::middleware(['auth', 'verified', 'role:admin,staff'])
     ->prefix('dashboard/forms')
     ->name('forms.')
     ->group(function () {
@@ -73,5 +76,38 @@ Route::middleware(['auth', 'verified'])
 Route::get('/form/{slug}', [FormController::class, 'showPublic'])->name('forms.public.show');
 Route::post('/form/{slug}', [FormController::class, 'submitPublic'])->name('forms.public.submit');
 Route::get('/form/{slug}/embed', [FormController::class, 'embed'])->name('forms.public.embed');
+
+Route::middleware(['auth', 'verified', 'role:admin'])
+    ->prefix('dashboard/test-email')
+    ->name('test-email.')
+    ->group(function () {
+        Route::get('/create', [TestEmailController::class, 'create'])->name('create');
+        Route::post('/send', [TestEmailController::class, 'send'])->name('send');
+    });
+
+Route::middleware(['auth', 'verified', 'role:admin'])
+    ->prefix('dashboard/users')
+    ->name('users.')
+    ->group(function () {
+        Route::get('/', [UserManagementController::class, 'index'])->name('index');
+        Route::post('/', [UserManagementController::class, 'store'])->name('store');
+        Route::put('/{user}', [UserManagementController::class, 'update'])->name('update');
+        Route::put('/{user}/password', [UserManagementController::class, 'updatePassword'])->name('update-password');
+        Route::post('/{user}/impersonate', [UserManagementController::class, 'impersonate'])->name('impersonate');
+    });
+
+Route::middleware(['auth', 'verified'])
+    ->post('/dashboard/stop-impersonating', [UserManagementController::class, 'stopImpersonating'])
+    ->name('users.stop-impersonating');
+
+Route::middleware(['auth', 'verified', 'role:admin'])
+    ->prefix('dashboard/roles')
+    ->name('roles.')
+    ->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->name('index');
+        Route::post('/', [RoleController::class, 'store'])->name('store');
+        Route::put('/{role}', [RoleController::class, 'update'])->name('update');
+        Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
+    });
 
 require __DIR__.'/auth.php';
