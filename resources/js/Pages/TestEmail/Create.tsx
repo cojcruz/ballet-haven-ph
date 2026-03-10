@@ -134,7 +134,8 @@ export default function Create() {
                             <h4 className="text-sm font-medium text-gray-900 mb-2">Mail Configuration Info</h4>
                             <div className="text-sm text-gray-600 space-y-1">
                                 <p><strong>Mail Service:</strong> NodeMailer</p>
-                                <p><strong>Environment:</strong> Local Development</p>
+                                <p><strong>Mail Provider:</strong> Live Mailtrap</p>
+                                <p><strong>Environment:</strong> Production</p>
                                 <p><strong>From Address:</strong> {import.meta.env.MAIL_FROM_NAME + ' <' + import.meta.env.MAIL_FROM_ADDRESS + '>'}</p>
                                 <p><strong>Mail Server:</strong> http://localhost:3001</p>
                             </div>

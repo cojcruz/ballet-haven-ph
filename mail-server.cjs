@@ -21,6 +21,10 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.MAIL_USERNAME || '',
         pass: process.env.MAIL_PASSWORD || ''
+    },
+    // Add TLS support for Live Mailtrap
+    tls: {
+        rejectUnauthorized: false // Allow self-signed certificates
     }
 });
 
