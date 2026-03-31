@@ -38,4 +38,14 @@ class PublicController extends Controller
             'page' => $page,
         ]);
     }
+
+    public function events()
+    {
+        return Inertia::render('Public/Events');
+    }
+
+    public function academies()
+    {
+        return Inertia::render('Public/Academies');
+    }
 }

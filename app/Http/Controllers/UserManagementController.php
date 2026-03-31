@@ -93,6 +93,20 @@ class UserManagementController extends Controller
         return back()->with('success', 'Password updated successfully.');
     }
 
+    public function updateProfile(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email,'.$user->id],
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
+
+        return back()->with('success', 'Profile updated successfully.');
+    }
+
     public function impersonate(Request $request, User $user): RedirectResponse
     {
         $originalUser = $request->user();

@@ -201,6 +201,13 @@ const Events = () => {
             ))}
           </div>
         )}
+
+        {/* CTA */}
+        <div className="text-center mt-12">
+          <a href="/events" className="inline-block font-body text-primary hover:text-burgundy-dark font-medium underline underline-offset-4 transition-colors">
+            View All Events →
+          </a>
+        </div>
       </div>
     </section>
   );
