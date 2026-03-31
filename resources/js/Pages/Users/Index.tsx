@@ -5,7 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
-import { UserPlus, Key, UserCog, X } from 'lucide-react';
+import { UserPlus, Key, UserCog, X, Edit } from 'lucide-react';
 
 type Role = {
     id: number;
@@ -38,6 +38,7 @@ export default function Index({ users, roles, impersonating, originalUser }: Pro
 
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState<User | null>(null);
+    const [showEditModal, setShowEditModal] = useState<User | null>(null);
 
     const defaultRole = roles.find(r => r.slug === 'viewer');
     
@@ -52,6 +53,11 @@ export default function Index({ users, roles, impersonating, originalUser }: Pro
     const { data: passwordData, setData: setPasswordData, put, processing: updatingPassword, errors: passwordErrors, reset: resetPassword } = useForm({
         password: '',
         password_confirmation: '',
+    });
+
+    const { data: editData, setData: setEditData, put: updateProfile, processing: updatingProfile, errors: editErrors, reset: resetEdit } = useForm({
+        name: '',
+        email: '',
     });
 
     const updateRole = (userId: number, roleId: number) => {
@@ -92,6 +98,27 @@ export default function Index({ users, roles, impersonating, originalUser }: Pro
         if (confirm(`Impersonate ${user.name}? You will be logged in as this user.`)) {
             router.post(route('users.impersonate', user.id));
         }
+    };
+
+    const openEditModal = (user: User) => {
+        setShowEditModal(user);
+        setEditData({
+            name: user.name,
+            email: user.email,
+        });
+    };
+
+    const handleUpdateProfile: FormEventHandler = (e) => {
+        e.preventDefault();
+        if (!showEditModal) return;
+        
+        updateProfile(route('users.update-profile', showEditModal.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowEditModal(null);
+                resetEdit();
+            },
+        });
     };
 
     return (
@@ -192,6 +219,13 @@ export default function Index({ users, roles, impersonating, originalUser }: Pro
                                                 </td>
                                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
                                                     <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => openEditModal(user)}
+                                                            className="text-blue-600 hover:text-blue-900"
+                                                            title="Edit Profile"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
                                                         <button
                                                             onClick={() => setShowPasswordModal(user)}
                                                             className="text-indigo-600 hover:text-indigo-900"
@@ -321,6 +355,73 @@ export default function Index({ users, roles, impersonating, originalUser }: Pro
                                 </button>
                                 <PrimaryButton disabled={creating}>
                                     {creating ? 'Creating...' : 'Create User'}
+                                </PrimaryButton>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showEditModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Edit Profile for {showEditModal.name}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowEditModal(null);
+                                    resetEdit();
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpdateProfile}>
+                            <div className="space-y-4">
+                                <div>
+                                    <InputLabel htmlFor="edit_name" value="Name" />
+                                    <TextInput
+                                        id="edit_name"
+                                        type="text"
+                                        value={editData.name}
+                                        onChange={(e) => setEditData('name', e.target.value)}
+                                        className="mt-1 block w-full"
+                                        required
+                                    />
+                                    <InputError message={editErrors.name} className="mt-2" />
+                                </div>
+
+                                <div>
+                                    <InputLabel htmlFor="edit_email" value="Email" />
+                                    <TextInput
+                                        id="edit_email"
+                                        type="email"
+                                        value={editData.email}
+                                        onChange={(e) => setEditData('email', e.target.value)}
+                                        className="mt-1 block w-full"
+                                        required
+                                    />
+                                    <InputError message={editErrors.email} className="mt-2" />
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowEditModal(null);
+                                        resetEdit();
+                                    }}
+                                    className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                                >
+                                    Cancel
+                                </button>
+                                <PrimaryButton disabled={updatingProfile}>
+                                    {updatingProfile ? 'Updating...' : 'Update Profile'}
                                 </PrimaryButton>
                             </div>
                         </form>

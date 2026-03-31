@@ -15,10 +15,10 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { name: "About", href: "#about" },
-    { name: "Academies", href: "#academies" },
-    { name: "Events", href: "#events" },
-    { name: "Contact", href: "#contact" },
+    { name: "About", href: "/#about" },
+    { name: "Academies", href: window.location.pathname === "/" ? "/#academies" : "/academies" },
+    { name: "Events", href: window.location.pathname === "/" ? "/#events" : "/events" },
+    { name: "Contact", href: "/#contact" },
   ];
 
   return (
@@ -32,7 +32,7 @@ const Navbar = () => {
       <div className="container mx-auto px-6 flex items-center justify-between">
         <a href="/" className="flex items-center gap-3">
           <span className="font-display text-xl md:text-2xl font-semibold text-foreground">
-            <img src="images/logo_notext.png" alt="ABAP Logo" className="h-20"/>
+            <img src="/images/logo_notext.png" alt="ABAP Logo" className="h-20"/>
           </span>          
           <span className="font-display text-lg md:text-xl font-semibold text-foreground">
             <span className="border-b border-b-solid border-black">Association of Ballet Academies of the Philippines (ABAP), Inc.</span><br />

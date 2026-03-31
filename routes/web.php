@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcademyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Cms\BlockController;
 use App\Http\Controllers\Cms\PageController;
@@ -14,7 +15,15 @@ use Inertia\Inertia;
 
 Route::get('/', [PublicController::class, 'home'])->name('home');
 
+Route::get('/events', [PublicController::class, 'events'])->name('public.events');
+
+Route::get('/academies', [PublicController::class, 'academies'])->name('public.academies');
+
 Route::get('/p/{slug}', [PublicController::class, 'show'])->name('cms.public.show');
+
+Route::get('/api/academies', [AcademyController::class, 'getPublished'])->name('api.academies');
+
+Route::get('/api/events', [EventController::class, 'publicIndex'])->name('api.events');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
@@ -92,6 +101,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('/', [UserManagementController::class, 'index'])->name('index');
         Route::post('/', [UserManagementController::class, 'store'])->name('store');
         Route::put('/{user}', [UserManagementController::class, 'update'])->name('update');
+        Route::put('/{user}/profile', [UserManagementController::class, 'updateProfile'])->name('update-profile');
         Route::put('/{user}/password', [UserManagementController::class, 'updatePassword'])->name('update-password');
         Route::post('/{user}/impersonate', [UserManagementController::class, 'impersonate'])->name('impersonate');
     });
@@ -108,6 +118,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::post('/', [RoleController::class, 'store'])->name('store');
         Route::put('/{role}', [RoleController::class, 'update'])->name('update');
         Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
+    });
+
+Route::middleware(['auth', 'verified', 'role:admin,staff'])
+    ->prefix('dashboard/academies')
+    ->name('academies.')
+    ->group(function () {
+        Route::get('/', [AcademyController::class, 'index'])->name('index');
+        Route::post('/', [AcademyController::class, 'store'])->name('store');
+        Route::put('/{academy}', [AcademyController::class, 'update'])->name('update');
+        Route::delete('/{academy}', [AcademyController::class, 'destroy'])->name('destroy');
+        Route::delete('/{academy}/photo', [AcademyController::class, 'deletePhoto'])->name('delete-photo');
     });
 
 require __DIR__.'/auth.php';

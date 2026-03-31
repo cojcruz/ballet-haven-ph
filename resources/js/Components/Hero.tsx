@@ -18,7 +18,7 @@ const Hero = () => {
       <div className="relative z-10 container mx-auto px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <p className="text-gold-light font-body text-sm md:text-base tracking-[0.3em] uppercase mb-6 animate-fade-up opacity-0">
-            Established 1995
+            Established 1993
           </p>
           <h1 className="font-display text-4xl md:text-6xl lg:text-7xl text-primary-foreground font-medium leading-tight mb-6 animate-fade-up opacity-0 animation-delay-200">
             Association of Ballet Academies

@@ -4,6 +4,7 @@ import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, router, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
+import { usePermissions } from '@/utils/permissions';
 
 export default function Authenticated({
     header,
@@ -11,6 +12,9 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode }>) {
     const { auth } = usePage().props;
     const user = auth.user;
+    const { hasPermission, getPermissions, getRoleName } = usePermissions();
+    
+    // Legacy compatibility
     const canManageContent = user.role === 'admin' || user.role === 'staff';
     const isAdmin = user.role === 'admin';
 
@@ -52,7 +56,7 @@ export default function Authenticated({
                                     Dashboard
                                 </NavLink>
 
-                                {canManageContent && (
+                                {hasPermission('manage_cms') && (
                                     <NavLink
                                         href={route('cms.pages.index')}
                                         active={route().current('cms.pages.*')}
@@ -61,7 +65,7 @@ export default function Authenticated({
                                     </NavLink>
                                 )}
 
-                                {canManageContent && (
+                                {hasPermission('manage_events') && (
                                     <NavLink
                                         href={route('events.index')}
                                         active={route().current('events.*')}
@@ -70,7 +74,7 @@ export default function Authenticated({
                                     </NavLink>
                                 )}
 
-                                {canManageContent && (
+                                {hasPermission('manage_forms') && (
                                     <NavLink
                                         href={route('forms.index')}
                                         active={route().current('forms.*')}
@@ -79,7 +83,16 @@ export default function Authenticated({
                                     </NavLink>
                                 )}
 
-                                {isAdmin && (
+                                {hasPermission('manage_academies') && (
+                                    <NavLink
+                                        href={route('academies.index')}
+                                        active={route().current('academies.*')}
+                                    >
+                                        Academies
+                                    </NavLink>
+                                )}
+
+                                {isAdmin && hasPermission('manage_users') && (
                                     <>
                                         <NavLink
                                             href={route('users.index')}
@@ -230,6 +243,15 @@ export default function Authenticated({
                                 active={route().current('forms.*')}
                             >
                                 Forms
+                            </ResponsiveNavLink>
+                        )}
+
+                        {canManageContent && (
+                            <ResponsiveNavLink
+                                href={route('academies.index')}
+                                active={route().current('academies.*')}
+                            >
+                                Academies
                             </ResponsiveNavLink>
                         )}
 

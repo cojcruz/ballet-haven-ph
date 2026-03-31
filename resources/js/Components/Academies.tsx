@@ -1,45 +1,32 @@
 import { MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
 
-const academies = [
-  {
-    name: "Philippine Ballet Theatre Academy",
-    location: "Quezon City, Metro Manila",
-    specialty: "Classical & Contemporary",
-    founded: "1987",
-  },
-  {
-    name: "Manila Dance Company School",
-    location: "Makati City, Metro Manila",
-    specialty: "Russian Method",
-    founded: "1992",
-  },
-  {
-    name: "Cebu Ballet Centre",
-    location: "Cebu City, Cebu",
-    specialty: "Vaganova Technique",
-    founded: "1999",
-  },
-  {
-    name: "Davao Ballet Academy",
-    location: "Davao City, Mindanao",
-    specialty: "RAD Syllabus",
-    founded: "2005",
-  },
-  {
-    name: "Iloilo Dance Conservatory",
-    location: "Iloilo City, Panay",
-    specialty: "Classical Ballet",
-    founded: "2001",
-  },
-  {
-    name: "Baguio Arts & Ballet School",
-    location: "Baguio City, Benguet",
-    specialty: "Cecchetti Method",
-    founded: "1998",
-  },
-];
+type Academy = {
+  id: number;
+  name: string;
+  location: string | null;
+  specialty: string | null;
+  founded: string | null;
+  logo_url: string | null;
+  description: string | null;
+};
 
 const Academies = () => {
+  const [academies, setAcademies] = useState<Academy[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/academies')
+      .then(response => response.json())
+      .then(data => {
+        setAcademies(data.academies);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching academies:', error);
+        setLoading(false);
+      });
+  }, []);
   return (
     <section id="academies" className="py-24 bg-secondary/50">
       <div className="container mx-auto px-6">
@@ -57,34 +44,69 @@ const Academies = () => {
         </div>
 
         {/* Academy Cards Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {academies.map((academy, index) => (
-            <div
-              key={index}
-              className="group bg-card rounded-lg p-8 shadow-soft hover:shadow-elegant transition-all duration-500 border border-border hover:border-gold/30"
-            >
-              <div className="mb-4">
-                <span className="inline-block px-3 py-1 bg-rose-light/50 text-primary text-xs font-body font-medium rounded-full tracking-wide">
-                  Est. {academy.founded}
-                </span>
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="font-body text-muted-foreground">Loading academies...</p>
+          </div>
+        ) : academies.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="font-body text-muted-foreground">No academies available at the moment.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {academies.map((academy) => (
+              <div
+                key={academy.id}
+                className="group bg-card rounded-lg overflow-hidden shadow-soft hover:shadow-elegant transition-all duration-500 border border-border hover:border-gold/30"
+              >
+                {academy.logo_url && (
+                  <div className="aspect-video w-full overflow-hidden bg-gray-100">
+                    <img
+                      src={academy.logo_url}
+                      alt={academy.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                )}
+                <div className="p-8">
+                  {academy.founded && (
+                    <div className="mb-4">
+                      <span className="inline-block px-3 py-1 bg-rose-light/50 text-primary text-xs font-body font-medium rounded-full tracking-wide">
+                        Est. {academy.founded}
+                      </span>
+                    </div>
+                  )}
+                  <h3 className="font-display text-xl text-foreground font-medium mb-3 group-hover:text-primary transition-colors">
+                    {academy.name}
+                  </h3>
+                  {academy.specialty && (
+                    <p className="font-body text-accent text-sm font-medium mb-4">
+                      {academy.specialty}
+                    </p>
+                  )}
+                  {academy.location && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin size={16} className="text-primary" />
+                      <span className="font-body text-sm">{academy.location}</span>
+                    </div>
+                  )}
+                  {academy.description && (
+                    <p className="font-body text-sm text-muted-foreground mt-4">
+                      {academy.description}
+                    </p>
+                  )}
+                </div>
               </div>
-              <h3 className="font-display text-xl text-foreground font-medium mb-3 group-hover:text-primary transition-colors">
-                {academy.name}
-              </h3>
-              <p className="font-body text-accent text-sm font-medium mb-4">
-                {academy.specialty}
-              </p>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin size={16} className="text-primary" />
-                <span className="font-body text-sm">{academy.location}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* CTA */}
         <div className="text-center mt-12">
-          <p className="font-body text-muted-foreground mb-4">
+          <a href="/academies" className="inline-block font-body text-primary hover:text-burgundy-dark font-medium underline underline-offset-4 transition-colors">
+            View All Academies →
+          </a>
+          {/* <p className="font-body text-muted-foreground mb-4">
             Is your academy interested in joining ABAP?
           </p>
           <a
@@ -92,7 +114,7 @@ const Academies = () => {
             className="inline-block font-body text-primary hover:text-burgundy-dark font-medium underline underline-offset-4 transition-colors"
           >
             Learn about membership →
-          </a>
+          </a> */}
         </div>
       </div>
     </section>

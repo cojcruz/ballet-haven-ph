@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import PublicLayout from '@/Layouts/PublicLayout';
 
 type FormField = {
     id: number;
@@ -449,10 +450,11 @@ export default function Show({ form: formData }: Props) {
     };
 
     return (
+        <PublicLayout title={formData.title}>
         <div className="min-h-screen bg-gray-100 py-12">
             <Head title={formData.title} />
 
-            <div className="mx-auto max-w-2xl sm:px-6 lg:px-8">
+            <div className="mt-20 mx-auto max-w-4xl sm:px-6 lg:px-8">
                 <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                     <div className="p-6 md:p-8">
                         <h1 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -526,6 +528,7 @@ export default function Show({ form: formData }: Props) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div> 
+        </PublicLayout>
     );
 }

@@ -43,6 +43,12 @@ class HandleInertiaRequests extends Middleware
                 'impersonating' => $impersonating,
                 'originalUser' => $originalUser,
             ],
+            'roles' => fn () => $request->user() 
+                ? \App\Models\Role::orderBy('name')->get(['id', 'name', 'slug', 'permissions'])
+                : [],
+            'currentUserRole' => fn () => $request->user() 
+                ? \App\Models\User::with('roleRelation')->find($request->user()->id)?->roleRelation
+                : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
